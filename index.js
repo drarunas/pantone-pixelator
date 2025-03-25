@@ -10,6 +10,8 @@
     const vSpacingInput = document.getElementById('vSpacing');
     const hSpacingInput = document.getElementById('hSpacing');
     const bgColorInput = document.getElementById('bgColor');
+    const fontStyleInput = document.getElementById('fontStyle');
+
 
     let pantoneColors;
     let uploadedImg = null;
@@ -90,7 +92,8 @@
       ctx.fillStyle = bgColor;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      ctx.font = `${fontSize}px ${fontFamily}`;
+      const fontStyle = fontStyleInput.value;
+      ctx.font = `${fontStyle} ${fontSize}px ${fontFamily}`;
       ctx.textAlign = "center";
       ctx.fillStyle = fontColor;
 
@@ -128,7 +131,7 @@
       downloadBtn.disabled = false;
     }
 
-    [numColumnsInput, fontSizeInput, fontColorInput, fontFamilyInput, vSpacingInput, hSpacingInput, bgColorInput].forEach(input => {
+    [numColumnsInput, fontSizeInput, fontColorInput, fontFamilyInput, fontStyleInput, vSpacingInput, hSpacingInput, bgColorInput].forEach(input => {
       input.addEventListener('input', () => {
         if (uploadedImg) renderImage();
       });
