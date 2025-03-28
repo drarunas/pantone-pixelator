@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <title>Pantone Pixelator</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+  
   <style>
     #canvas-container {
       max-width: 100%;
@@ -30,7 +32,7 @@
       </label>
       <label class="flex flex-col items-start text-sm">
         Font Size
-        <input type="number" id="fontSize" value="20" min="1" max="50" class="rounded border px-2 py-1">
+        <input type="number" id="fontSize" value="20" min="1" max="150" class="rounded border px-2 py-1">
       </label>
       <label class="flex flex-col items-start text-sm">
         Font Color
@@ -58,17 +60,18 @@
       </label>
       <label class="flex flex-col items-start text-sm">
         Vertical Spacing
-        <input type="number" id="vSpacing" value="12" min="0" max="20" class="rounded border px-2 py-1">
+        <input type="number" id="vSpacing" value="12" min="0" max="100" class="rounded border px-2 py-1">
       </label>
       <label class="flex flex-col items-start text-sm">
         Horizontal Spacing
-        <input type="number" id="hSpacing" value="6" min="0" max="20" class="rounded border px-2 py-1">
+        <input type="number" id="hSpacing" value="6" min="0" max="100" class="rounded border px-2 py-1">
       </label>
       <label class="flex flex-col items-start text-sm">
         Background Color
         <input type="color" id="bgColor" value="#ffffff" class="rounded border px-2 py-1 h-10">
       </label>
       <button id="download" disabled class="w-fit bg-green-600 text-white px-4 py-2 rounded disabled:opacity-50">Download Output</button>
+      <button id="exportPdf" disabled class="w-fit bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50">Export as PDF</button>
     </div>
 
     

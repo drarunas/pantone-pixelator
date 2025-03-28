@@ -2,6 +2,7 @@ const upload = document.getElementById('upload');
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const downloadBtn = document.getElementById('download');
+const exportPdfBtn = document.getElementById('exportPdf');
 
 const numColumnsInput = document.getElementById('numColumns');
 const fontSizeInput = document.getElementById('fontSize');
@@ -14,6 +15,7 @@ const fontStyleInput = document.getElementById('fontStyle');
 
 let pantoneColors;
 let uploadedImg = null;
+let imgData; // Declare imgData as a global variable
 
 function rgbToLab([r, g, b]) {
   [r, g, b] = [r, g, b].map(v => {
@@ -50,22 +52,29 @@ upload.addEventListener('change', async (e) => {
   await img.decode();
 
   uploadedImg = img;
-  console.log(uploadedImg);
 
-  // Automatically set default variables based on image size
+  // Automatically set default variables based on image size and screen dimensions
+  const screenWidth = window.innerWidth;
+  const screenHeight = window.innerHeight;
   const aspectRatio = img.width / img.height;
-  numColumnsInput.value = 2;
-  console.log(numColumnsInput.value);
-  fontSizeInput.value = Math.max(10, Math.min(30, Math.round(img.width / 100))); // Adjust font size
-  vSpacingInput.value = Math.max(5, Math.min(15, Math.round(img.height / 200))); // Adjust vertical spacing
-  hSpacingInput.value = Math.max(5, Math.min(15, Math.round(img.width / 200))); // Adjust horizontal spacing
+
+  // Calculate number of columns to fit the image nicely on the screen
+  const maxColumns = Math.floor(screenWidth / 50); // Assuming 50px per column
+  const optimalColumns = Math.round(aspectRatio * 10);
+  numColumnsInput.value = Math.max(5, Math.min(maxColumns, optimalColumns));
+
+  // Adjust font size based on screen size and image dimensions
+  fontSizeInput.value = Math.max(12, Math.min(24, Math.round(screenWidth / 100)));
+
+  // Adjust vertical and horizontal spacing for better layout
+  vSpacingInput.value = Math.max(5, Math.min(20, Math.round(screenHeight / 100)));
+  hSpacingInput.value = 1;
 
   renderImage();
 });
 
 async function renderImage() {
   if (!uploadedImg || !pantoneColors) return;
-  console.log('Rendering image...');
 
   const img = uploadedImg;
   const numColumns = parseInt(numColumnsInput.value);
@@ -88,7 +97,9 @@ async function renderImage() {
   tempCanvas.height = numRows;
   const tempCtx = tempCanvas.getContext('2d');
   tempCtx.drawImage(img, 0, 0, numColumns, numRows);
-  const imgData = tempCtx.getImageData(0, 0, numColumns, numRows).data;
+
+  // Store imgData in the global variable
+  imgData = tempCtx.getImageData(0, 0, numColumns, numRows).data;
 
   const outW = numColumns * swatchW - hSpacing;
   const outH = numRows * swatchH - vSpacing;
@@ -96,7 +107,7 @@ async function renderImage() {
   const pixelRatio = window.devicePixelRatio || 2;
   canvas.width = (outW + 50) * pixelRatio;
   canvas.height = (outH + 50) * pixelRatio;
-  
+
   ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
 
   ctx.fillStyle = bgColor;
@@ -138,7 +149,12 @@ async function renderImage() {
     }
   }
 
+  enableExportButtons();
+}
+
+function enableExportButtons() {
   downloadBtn.disabled = false;
+  exportPdfBtn.disabled = false;
 }
 
 [numColumnsInput, fontSizeInput, fontColorInput, fontFamilyInput, fontStyleInput, vSpacingInput, hSpacingInput, bgColorInput].forEach(input => {
@@ -153,3 +169,78 @@ downloadBtn.addEventListener('click', () => {
   link.href = canvas.toDataURL();
   link.click();
 });
+
+exportPdfBtn.addEventListener('click', () => {
+  const { jsPDF } = window.jspdf;
+
+  const numColumns = parseInt(numColumnsInput.value);
+  const fontSize = parseInt(fontSizeInput.value);
+  const fontColor = fontColorInput.value;
+  const fontFamily = fontFamilyInput.value;
+  const vSpacing = parseInt(vSpacingInput.value);
+  const hSpacing = parseInt(hSpacingInput.value);
+  const labelHeight = fontSize * 1.5;
+  const bgColor = bgColorInput.value;
+
+  const aspect = uploadedImg.width / uploadedImg.height;
+  const blockSize = Math.floor((uploadedImg.width - (numColumns - 1) * hSpacing) / numColumns);
+  const swatchW = blockSize + hSpacing;
+  const swatchH = blockSize + labelHeight + vSpacing;
+  const numRows = Math.round(numColumns / aspect * (swatchW / swatchH));
+
+  // Calculate PDF dimensions based on the rendered canvas
+  const pdfWidth = numColumns * swatchW - hSpacing;
+  const pdfHeight = numRows * swatchH;
+
+  const pdf = new jsPDF({
+    orientation: pdfWidth > pdfHeight ? 'landscape' : 'portrait',
+    unit: 'px',
+    format: [pdfWidth, pdfHeight],
+  });
+
+  // Set background color
+  pdf.setFillColor(bgColor);
+  pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
+
+  pdf.setFont(fontFamily);
+  pdf.setFontSize(fontSize * 1.5);
+
+  for (let y = 0; y < numRows; y++) {
+    for (let x = 0; x < numColumns; x++) {
+      const idx = (y * numColumns + x) * 4;
+      const rgb = [imgData[idx], imgData[idx + 1], imgData[idx + 2]];
+
+      const lab = rgbToLab(rgb);
+      let closest = pantoneColors[0];
+      let minDist = Infinity;
+      for (const pantone of pantoneColors) {
+        const d = Math.hypot(
+          lab[0] - pantone.lab[0],
+          lab[1] - pantone.lab[1],
+          lab[2] - pantone.lab[2]
+        );
+        if (d < minDist) {
+          minDist = d;
+          closest = pantone;
+        }
+      }
+
+      const x0 = x * swatchW;
+      const y0 = y * swatchH;
+
+      // Draw the rectangle (vector)
+      pdf.setFillColor(...closest.rgb);
+      pdf.rect(x0, y0, blockSize, blockSize, 'F');
+
+      // Draw the text (vector)
+      const name = closest.name.slice(0, 20);
+      pdf.setTextColor(fontColor);
+      pdf.text(name, x0 + blockSize / 2, y0 + blockSize + labelHeight / 1, {
+        align: 'center',
+      });
+    }
+  }
+
+  pdf.save('pantone_output.pdf');
+});
+
